@@ -4,7 +4,9 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-@{ Html.AddScriptResources("/assets/js/jquery_1.7.2.js", "/assets/js/minifyjs_test.js"); }
+@{ 
+    Html.AddScriptResources("/assets/js/jquery_1.7.2.js", "/assets/js/minifyjs_test.js"); 
+    }
 
 <div id="js-test-container">
     <p style="color: #f00;">This test is broken! This text should have been replaced!</p>
