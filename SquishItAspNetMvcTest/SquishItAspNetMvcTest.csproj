@@ -79,6 +79,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="App_Start\JavaScriptBundleExtensions.cs" />
     <Compile Include="Controllers\AssetHashingController.cs" />
     <Compile Include="Controllers\AutoBundlingController.cs" />
     <Compile Include="Controllers\DebuggingBehaviorController.cs" />
