@@ -8,6 +8,7 @@ using SquishIt.Tests.Helpers;
 using SquishIt.Tests.Stubs;
 using SquishIt.Framework;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace SquishIt.Tests 
 {
@@ -26,7 +27,7 @@ namespace SquishIt.Tests
 
         CSSBundleFactory cssBundleFactory;
         IHasher hasher;
-        private IPathTranslator translator = Configuration.Instance.DefaultPathTranslator();
+        private IPathTranslator translator = Configuration.Instance.Platform.PathTranslator;
 
         [SetUp]
         public void Setup () {
@@ -166,10 +167,118 @@ namespace SquishIt.Tests
             Assert.Contains(translator.ResolveAppRelativePathToFileSystem("css_A/other.less"), cssBundleA.bundleState.DependentFiles);
             Assert.Contains(translator.ResolveAppRelativePathToFileSystem("css_B/other.less"), cssBundleB.bundleState.DependentFiles);
         }
- 
 
         [Test]
-        public void CanBundleCssWithArbitraryLess ()
+        public void CanBundleCssWithLessToRawContentMultiThreaded()
+        {
+            using (new StylePreprocessorScope<LessPreprocessor>())
+            {
+                CSSBundle cssBundle = cssBundleFactory
+                    .WithHasher(hasher)
+                    .WithDebuggingEnabled(false)
+                    .WithContents(cssLess)
+                    .Create();
+
+                Task<string> taskA = new Task<string>(() => cssBundle.Add("~/css/test.less").RenderRawContent("A"));
+                Task<string> taskB = new Task<string>(() => cssBundle.Add("~/css/test.less").RenderRawContent("B"));
+                Task<string> taskC = new Task<string>(() => cssBundle.Add("~/css/test.less").RenderRawContent("C"));
+
+                taskA.Start();
+                taskB.Start();
+                taskC.Start();
+
+                Task.WaitAll(taskA, taskB, taskC);
+
+                string contentA = taskA.Result;
+                string contentB = taskB.Result;
+                string contentC = taskC.Result;
+
+                Assert.AreEqual("#header{color:#4d926f}h2{color:#4d926f}", contentA);
+                Assert.AreEqual(contentA, contentB);
+                Assert.AreEqual(contentB, contentC);
+            }
+        }
+
+        [Test]
+        public void CanBundleCssWithAsCachedMultiThreaded()
+        {
+            using (new StylePreprocessorScope<LessPreprocessor>())
+            {
+                CSSBundle cssBundle = cssBundleFactory
+                    .WithHasher(hasher)
+                    .WithDebuggingEnabled(false)
+                    .WithContents(cssLess)
+                    .Create();
+
+                Task<string> taskA = new Task<string>(() => cssBundle.Add("~/css/test.less").AsCached("a", "~/css/a.css"));
+                Task<string> taskB = new Task<string>(() => cssBundle.Add("~/css/test.less").AsCached("b", "~/css/b.css"));
+                Task<string> taskC = new Task<string>(() => cssBundle.Add("~/css/test.less").AsCached("c", "~/css/c.css"));
+
+                taskA.Start();
+                taskB.Start();
+                taskC.Start();
+
+                Task.WaitAll(taskA, taskB, taskC);
+                
+                Assert.AreEqual(
+                    "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/a.css?r=15D3D9555DEFACE69D6AB9E7FD972638\" />",
+                    taskA.Result);
+                Assert.AreEqual(
+                    "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/b.css?r=15D3D9555DEFACE69D6AB9E7FD972638\" />",
+                    taskB.Result);
+                Assert.AreEqual(
+                    "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/c.css?r=15D3D9555DEFACE69D6AB9E7FD972638\" />",
+                    taskC.Result);
+
+                string contentA = cssBundle.RenderCached("a");
+                string contentB = cssBundle.RenderCached("b");
+                string contentC = cssBundle.RenderCached("c");
+
+                Assert.AreEqual("#header{color:#4d926f}h2{color:#4d926f}", contentA);
+                Assert.AreEqual(contentA, contentB);
+                Assert.AreEqual(contentB, contentC);
+            }
+        }
+
+        [Test]
+        public void CanBundleCssWithAsNamedMultiThreaded()
+        {
+            using (new StylePreprocessorScope<LessPreprocessor>())
+            {
+                CSSBundle cssBundle = cssBundleFactory
+                    .WithHasher(hasher)
+                    .WithDebuggingEnabled(false)
+                    .WithContents(cssLess)
+                    .Create();
+
+                Task taskA = Task.Factory.StartNew(() => cssBundle.Add("~/css/test.less").AsNamed("a", "~/css/a.css"));
+                Task taskB = Task.Factory.StartNew(() => cssBundle.Add("~/css/test.less").AsNamed("b", "~/css/b.css"));
+                Task taskC = Task.Factory.StartNew(() => cssBundle.Add("~/css/test.less").AsNamed("c", "~/css/c.css"));
+
+                Task.WaitAll(taskA, taskB, taskC);
+                
+                Assert.AreEqual(
+                    "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/a.css?r=15D3D9555DEFACE69D6AB9E7FD972638\" />",
+                    cssBundle.RenderNamed("a"));
+                Assert.AreEqual(
+                    "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/b.css?r=15D3D9555DEFACE69D6AB9E7FD972638\" />",
+                    cssBundle.RenderNamed("b"));
+                Assert.AreEqual(
+                    "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/c.css?r=15D3D9555DEFACE69D6AB9E7FD972638\" />",
+                    cssBundle.RenderNamed("c"));
+
+                string contentA = cssBundleFactory.FileWriterFactory.Files[TestUtilities.PrepareRelativePath(@"css\a.css")];
+                string contentB = cssBundleFactory.FileWriterFactory.Files[TestUtilities.PrepareRelativePath(@"css\b.css")];
+                string contentC = cssBundleFactory.FileWriterFactory.Files[TestUtilities.PrepareRelativePath(@"css\c.css")];
+
+                Assert.AreEqual("#header{color:#4d926f}h2{color:#4d926f}", contentA);
+                Assert.AreEqual(contentA, contentB);
+                Assert.AreEqual(contentB, contentC);
+            }
+        }
+
+        [Test]
+        public void CanBundleCssWithArbitraryLess()
         {
             var tag = cssBundleFactory
                 .WithHasher(hasher)

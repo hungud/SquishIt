@@ -14,12 +14,12 @@ using SquishIt.Framework.Resolvers;
 using SquishIt.Framework.Utilities;
 using SquishIt.Tests.Helpers;
 using SquishIt.Tests.Stubs;
-using HttpContext = SquishIt.Framework.HttpContext;
+using HttpContext = SquishIt.AspNet.HttpContext;
 
 namespace SquishIt.Tests
 {
     [TestFixture]
-    public class CSSBundleTests
+    public class CSSBundleTests : ConfigurationEstablishingTest
     {
         string css = TestUtilities.NormalizeLineEndings(@" li {
                                     margin-bottom:0.1em;
@@ -1189,7 +1189,7 @@ background:url(images/button-loader.gif) #ccc;
             var file2 = "anotherfile.css";
 
             var arbitraryCss = ".someClass { color:red }";
-            var minifiedArbitraryCss = ".someClass{color:red}";
+            var minifiedArbitraryCss = ".someClass{color:#f00}";
 
             var readerFactory = new StubFileReaderFactory();
             readerFactory.SetContentsForFile(TestUtilities.PrepareRelativePath(file1), css);

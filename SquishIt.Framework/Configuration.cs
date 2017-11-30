@@ -1,286 +1,309 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using SquishIt.Framework.Base;
+using SquishIt.Framework.Caches;
 using SquishIt.Framework.CSS;
 using SquishIt.Framework.Files;
 using SquishIt.Framework.Invalidation;
 using SquishIt.Framework.JavaScript;
 using SquishIt.Framework.Minifiers;
-using SquishIt.Framework.Minifiers.JavaScript;
 using SquishIt.Framework.Renderers;
 using SquishIt.Framework.Utilities;
-using MsMinifier = SquishIt.Framework.Minifiers.CSS.MsMinifier;
-using NullMinifier = SquishIt.Framework.Minifiers.CSS.NullMinifier;
-using YuiMinifier = SquishIt.Framework.Minifiers.CSS.YuiMinifier;
 
 namespace SquishIt.Framework
 {
-    public class Configuration
+    /// <summary>
+    /// Configuration for SquishIt
+    /// </summary>
+    public interface ISquishItOptions
     {
-        private static Configuration instance;
-        private ICacheInvalidationStrategy _defaultCacheInvalidationStrategy = new DefaultCacheInvalidationStrategy();
-        private IMinifier<CSSBundle> _defaultCssMinifier = new MsMinifier();
-        private Func<bool> _defaultDebugPredicate;
-        private string _defaultHashKeyName = "r";
-        private IHasher _defaultHasher;
-        private IMinifier<JavaScriptBundle> _defaultJsMinifier = new Minifiers.JavaScript.MsMinifier();
-        private string _defaultOutputBaseHref;
-        private IPathTranslator _defaultPathTranslator = new PathTranslator();
-        private IRenderer _defaultReleaseRenderer;
-        private ITempPathProvider _defaultTempPathProvider = new TempPathProvider();
-        private IRetryableFileOpener _defaultRetryableFileOpener = new RetryableFileOpener();
+        /// <summary>
+        /// Cache invalidation strategy used by default (can be overridden at bundle level using .WithCacheInvalidationStrategy)
+        /// </summary>
+        ICacheInvalidationStrategy DefaultCacheInvalidationStrategy { get; set; }
 
-        public Configuration()
-        {
-            JavascriptMimeType = "application/javascript";
-            CssMimeType = "text/css";
-        }
+        /// <summary>
+        /// CSS minifier used by default (can be overridden at bundle level using .WithMinifier)
+        /// </summary>
+        IMinifier<CSSBundle> DefaultCssMinifier { get; set; }
 
-        public static Configuration Instance
-        {
-            get { return (instance = instance ?? new Configuration()); }
-            internal set { instance = value; }
-        }
+        /// <summary>
+        /// JS minifier used by default (can be overridden at bundle level using .WithMinifier)
+        /// </summary>
+        IMinifier<JavaScriptBundle> DefaultJsMinifier { get; set; }
+
+        /// <summary>
+        /// Debug predicate used to analyze bundle contents at runtime (defaults to null, can be overridden at bundle level using .ForceDebugIf)
+        /// </summary>
+        Func<bool> DefaultDebugPredicate { get; set; }
+
+        /// <summary>
+        /// Name for hash key rendered in URLs - can be overridden at bundle level using HashKeyNamed OR WithoutRevisionHash
+        /// </summary>
+        string DefaultHashKeyName { get; set; }
+
+        /// <summary>
+        /// Hash calculation strategy to use - can't be overridden at bundle level
+        /// </summary>
+        IHasher DefaultHasher { get; set; }
+
+        /// <summary>
+        /// Base URL for CDN scenarios - can be overridden at bundle level using .WithOutputBaseHref
+        /// </summary>
+        string DefaultOutputBaseHref { get; set; }
+
+        /// <summary>
+        /// Renderer to use for release file outputs - can be overridden at bundle level using .WithReleaseFileRenderer
+        /// </summary>
+        IRenderer DefaultReleaseRenderer { get; set; }
+
+        /// <summary>
+        /// Temp path provider to use for embedded resource resolution - can't be overridden at bundle level
+        /// </summary>
+        ITempPathProvider DefaultTempPathProvider { get; set; }
+
+        /// <summary>
+        /// File opener to use when reading / writing content (writing only for file system rendering) - can't be overridden at bundle level
+        /// </summary>
+        IRetryableFileOpener DefaultRetryableFileOpener { get; set; }
 
         /// <summary>
         ///     Mime-type used to serve Javascript content. Defaults to "application/javascript".
         ///     To enable gzip compression in IIS change this to "application/x-javascript".
         /// </summary>
-        public string JavascriptMimeType { get; set; }
+        string DefaultJavascriptMimeType { get; set; }
 
         /// <summary>
         ///     Mime-type used to serve CSS content. Defaults to "text/css".
         /// </summary>
-        public string CssMimeType { get; set; }
+        string DefaultCssMimeType { get; set; }
 
-        public Configuration UseMinifierForCss<TMinifier>()
-            where TMinifier : IMinifier<CSSBundle>
+        /// <summary>
+        /// Register a preprocessor for global use.
+        /// </summary>
+        /// <typeparam name="T">IPreprocessor implementation type.</typeparam>
+        /// <param name="instance">Constructed instance of T that can be used for processing.</param>
+        void RegisterGlobalPreprocessor<T>(T instance) where T : IPreprocessor;
+
+        /// <summary>
+        /// Register a preprocessor for script use.
+        /// </summary>
+        /// <typeparam name="T">IPreprocessor implementation type.</typeparam>
+        /// <param name="instance">Constructed instance of T that can be used for processing.</param>
+        void RegisterScriptPreprocessor<T>(T instance) where T : IPreprocessor;
+
+        /// <summary>
+        /// Register a preprocessor for style use.
+        /// </summary>
+        /// <typeparam name="T">IPreprocessor implementation type.</typeparam>
+        /// <param name="instance">Constructed instance of T that can be used for processing.</param>
+        void RegisterStylePreprocessor<T>(T instance) where T : IPreprocessor;
+
+        #region internals
+        /// <summary>
+        /// Platform-specific configuration.
+        /// </summary>
+        IPlatformConfiguration Platform { get; set; }
+
+        /// <summary>
+        /// Preprocessors registered with framework.
+        /// </summary>
+        IEnumerable<IPreprocessor> Preprocessors { get; }
+
+        /// <summary>
+        /// File extensions supported by this configuration.
+        /// </summary>
+        IEnumerable<string> AllowedGlobalExtensions { get; }
+
+        /// <summary>
+        /// Script file extensions supported by this configuration.
+        /// </summary>
+        IEnumerable<string> AllowedScriptExtensions { get; }
+
+        /// <summary>
+        /// Style file extensions supported by this configuration.
+        /// </summary>
+        IEnumerable<string> AllowedStyleExtensions { get; }
+
+        /// <summary>
+        /// Clear configured preprocessors.
+        /// </summary>
+        void ClearPreprocessors();
+        #endregion
+    }
+
+    public class Configuration : ISquishItOptions
+    {
+        public ICacheInvalidationStrategy DefaultCacheInvalidationStrategy { get; set; }
+
+        public IMinifier<CSSBundle> DefaultCssMinifier { get; set; }
+
+        public Func<bool> DefaultDebugPredicate { get; set; }
+
+        public string DefaultHashKeyName { get; set; }
+
+        public IHasher DefaultHasher { get; set; }
+
+        public IMinifier<JavaScriptBundle> DefaultJsMinifier { get; set; }
+
+        public string DefaultOutputBaseHref { get; set; }
+
+        public IRenderer DefaultReleaseRenderer { get; set; }
+
+        public ITempPathProvider DefaultTempPathProvider { get; set; }
+
+        public IRetryableFileOpener DefaultRetryableFileOpener { get; set; }
+
+        /// <summary>
+        ///     Mime-type used to serve Javascript content. Defaults to "application/javascript".
+        ///     To enable gzip compression in IIS change this to "application/x-javascript".
+        /// </summary>
+        public string DefaultJavascriptMimeType { get; set; }
+
+        /// <summary>
+        ///     Mime-type used to serve CSS content. Defaults to "text/css".
+        /// </summary>
+        public string DefaultCssMimeType { get; set; }
+
+        public IPlatformConfiguration Platform { get; set; }
+
+        public Configuration()
         {
-            return UseMinifierForCss(typeof (TMinifier));
+            DefaultJavascriptMimeType = "application/javascript";
+            DefaultCssMimeType = "text/css";
+            DefaultCacheInvalidationStrategy = new DefaultCacheInvalidationStrategy();
+            DefaultCssMinifier = new Minifiers.CSS.MsMinifier();
+            DefaultHashKeyName = "r";
+            DefaultJsMinifier = new Minifiers.JavaScript.MsMinifier();
+            DefaultTempPathProvider = new TempPathProvider();
+            DefaultRetryableFileOpener = new RetryableFileOpener();
+            DefaultHasher = new Hasher(DefaultRetryableFileOpener);
         }
 
-        public Configuration UseMinifierForCss(Type minifierType)
+        private static ISquishItOptions instance;
+
+        public static ISquishItOptions Instance
         {
-            if (!typeof (IMinifier<CSSBundle>).IsAssignableFrom(minifierType))
-                throw new InvalidCastException(
-                    String.Format("Type '{0}' must implement '{1}' to be used for Css minification.",
-                                  minifierType, typeof (IMinifier<CSSBundle>)));
-            return UseMinifierForCss((IMinifier<CSSBundle>) Activator.CreateInstance(minifierType, true));
+            get { return (instance = instance ?? new Configuration()); }
+            internal set { instance = value; }
         }
 
-        public Configuration UseMinifierForCss(IMinifier<CSSBundle> minifier)
+        public static void Apply(Action<ISquishItOptions> configurer)
         {
-            _defaultCssMinifier = minifier;
-            return this;
+            configurer(Instance);
         }
 
-        public Configuration UseMinifierForJs<TMinifier>()
-            where TMinifier : IMinifier<JavaScriptBundle>
-        {
-            return UseMinifierForJs(typeof (TMinifier));
-        }
+        internal readonly List<IPreprocessor> Preprocessors = new List<IPreprocessor>();
+        internal readonly HashSet<String> AllowedGlobalExtensions = new HashSet<string>();
+        internal readonly HashSet<String> AllowedScriptExtensions = new HashSet<string> { ".JS" };
+        internal readonly HashSet<String> AllowedStyleExtensions = new HashSet<string> { ".CSS" };
 
-        public Configuration UseMinifierForJs(Type minifierType)
+        private IEnumerable<string> AllExtensions
         {
-            if (!typeof (IMinifier<JavaScriptBundle>).IsAssignableFrom(minifierType))
-                throw new InvalidCastException(
-                    String.Format("Type '{0}' must implement '{1}' to be used for Javascript minification.",
-                                  minifierType, typeof (IMinifier<JavaScriptBundle>)));
-            return UseMinifierForJs((IMinifier<JavaScriptBundle>) Activator.CreateInstance(minifierType, true));
-        }
-
-        public Configuration UseMinifierForJs(IMinifier<JavaScriptBundle> minifier)
-        {
-            _defaultJsMinifier = minifier;
-            return this;
+            get { return AllowedGlobalExtensions.Union(AllowedScriptExtensions).Union(AllowedStyleExtensions).Select(x => x.ToUpper()); }
         }
 
         /// <summary>
-        ///     Use Yahoo YUI Compressor for CSS minification by default.
+        /// Register a preprocessor instance to be used for all bundle types.
         /// </summary>
-        public Configuration UseYuiForCssMinification()
+        /// <typeparam name="T"><see cref="IPreprocessor">IPreprocessor</see> implementation type.</typeparam>
+        /// <param name="instance"><see cref="IPreprocessor">IPreprocessor</see> instance.</param>
+        public void RegisterGlobalPreprocessor<T>(T instance) where T : IPreprocessor
         {
-            return UseMinifierForCss<YuiMinifier>();
-        }
-
-        /// <summary>
-        ///     Use Microsoft Ajax Minifier for CSS minification by default.
-        /// </summary>
-        public Configuration UseMsAjaxForCssMinification()
-        {
-            return UseMinifierForCss<MsMinifier>();
-        }
-
-        /// <summary>
-        ///     By default, perform no minification of CSS.
-        /// </summary>
-        public Configuration UseNoCssMinification()
-        {
-            return UseMinifierForCss<NullMinifier>();
-        }
-
-        /// <summary>
-        ///     Use Microsoft Ajax Minifier for Javascript minification by default.
-        /// </summary>
-        public Configuration UseMsAjaxForJsMinification()
-        {
-            return UseMinifierForJs<Minifiers.JavaScript.MsMinifier>();
-        }
-
-        /// <summary>
-        ///     Use Yahoo YUI Compressor for Javascript minification by default.
-        /// </summary>
-        public Configuration UseYuiForJsMinification()
-        {
-            return UseMinifierForJs<Minifiers.JavaScript.YuiMinifier>();
-        }
-
-        /// <summary>
-        ///     Use Google Closure for Javascript minification by default.
-        /// </summary>
-        public Configuration UseClosureForMinification()
-        {
-            return UseMinifierForJs<ClosureMinifier>();
-        }
-
-        /// <summary>
-        ///     By default, perform no minification of Javascript.
-        /// </summary>
-        public Configuration UseNoJsMinification()
-        {
-            return UseMinifierForJs<Minifiers.JavaScript.NullMinifier>();
-        }
-
-        /// <summary>
-        ///     Use Douglas Crockford's JsMin for Javascript minification by default.
-        /// </summary>
-        public Configuration UseJsMinForJsMinification()
-        {
-            return UseMinifierForJs<JsMinMinifier>();
-        }
-
-        internal IMinifier<CSSBundle> DefaultCssMinifier()
-        {
-            return _defaultCssMinifier;
-        }
-
-        internal IMinifier<JavaScriptBundle> DefaultJsMinifier()
-        {
-            return _defaultJsMinifier;
-        }
-
-        public Configuration UseReleaseRenderer(IRenderer releaseRenderer)
-        {
-            _defaultReleaseRenderer = releaseRenderer;
-            return this;
-        }
-
-        internal IRenderer DefaultReleaseRenderer()
-        {
-            return _defaultReleaseRenderer;
-        }
-
-        public Configuration UseDefaultOutputBaseHref(string url)
-        {
-            _defaultOutputBaseHref = url;
-            return this;
-        }
-
-        internal string DefaultOutputBaseHref()
-        {
-            return _defaultOutputBaseHref;
-        }
-
-        public Configuration UseConditionToForceDebugging(Func<bool> condition)
-        {
-            _defaultDebugPredicate = condition;
-            return this;
-        }
-
-        internal Func<bool> DefaultDebugPredicate()
-        {
-            return _defaultDebugPredicate;
-        }
-
-        public Configuration UseHasher(IHasher hasher)
-        {
-            _defaultHasher = hasher;
-            return this;
-        }
-
-        public Configuration RetryableFileOpener(IRetryableFileOpener retryableFileOpener)
-        {
-            _defaultRetryableFileOpener = retryableFileOpener;
-            return this;
-        }
-
-        public Configuration UseSHA1Hasher()
-        {
-            return UseHasher(new SHA1Hasher(_defaultRetryableFileOpener));
-        }
-
-        internal IHasher DefaultHasher()
-        {
-            if (_defaultHasher == null)
+            ValidatePreprocessor<T>(instance);
+            foreach (var ext in instance.Extensions)
             {
-                _defaultHasher = new Hasher(_defaultRetryableFileOpener);
+                AllowedGlobalExtensions.Add(ext.ToUpper());
+            }
+            Preprocessors.Add(instance);
+            if (instance.IgnoreExtensions.NullSafeAny())
+            {
+                foreach (var ext in instance.IgnoreExtensions)
+                {
+                    AllowedGlobalExtensions.Add(ext.ToUpper());
+                }
+                Preprocessors.Add(new NullPreprocessor(instance.IgnoreExtensions));
+            }
+        }
+
+        /// <summary>
+        /// Register a preprocessor instance to be used for script bundles.
+        /// </summary>
+        /// <typeparam name="T"><see cref="IPreprocessor">IPreprocessor</see> implementation type.</typeparam>
+        /// <param name="instance"><see cref="IPreprocessor">IPreprocessor</see> instance.</param>
+        public void RegisterScriptPreprocessor<T>(T instance) where T : IPreprocessor
+        {
+            ValidatePreprocessor<T>(instance);
+            foreach (var ext in instance.Extensions)
+            {
+                AllowedScriptExtensions.Add(ext.ToUpper());
+            }
+            Preprocessors.Add(instance);
+            if (instance.IgnoreExtensions.NullSafeAny())
+            {
+                foreach (var ext in instance.IgnoreExtensions)
+                {
+                    AllowedScriptExtensions.Add(ext.ToUpper());
+                }
+                Preprocessors.Add(new NullPreprocessor(instance.IgnoreExtensions));
+            }
+        }
+
+        /// <summary>
+        /// Register a preprocessor instance to be used for all style bundles.
+        /// </summary>
+        /// <typeparam name="T"><see cref="IPreprocessor">IPreprocessor</see> implementation type.</typeparam>
+        /// <param name="instance"><see cref="IPreprocessor">IPreprocessor</see> instance.</param>
+        public void RegisterStylePreprocessor<T>(T instance) where T : IPreprocessor
+        {
+            ValidatePreprocessor<T>(instance);
+            foreach (var ext in instance.Extensions)
+            {
+                AllowedStyleExtensions.Add(ext.ToUpper());
+            }
+            Preprocessors.Add(instance);
+            if (instance.IgnoreExtensions.NullSafeAny())
+            {
+                foreach (var ext in instance.IgnoreExtensions)
+                {
+                    AllowedStyleExtensions.Add(ext.ToUpper());
+                }
+                Preprocessors.Add(new NullPreprocessor(instance.IgnoreExtensions));
+            }
+        }
+
+        IEnumerable<IPreprocessor> ISquishItOptions.Preprocessors { get { return Preprocessors.AsEnumerable(); } }
+        IEnumerable<string> ISquishItOptions.AllowedGlobalExtensions { get { return AllowedGlobalExtensions.AsEnumerable(); } }
+        IEnumerable<string> ISquishItOptions.AllowedScriptExtensions { get { return AllowedScriptExtensions.AsEnumerable(); } }
+        IEnumerable<string> ISquishItOptions.AllowedStyleExtensions { get { return AllowedStyleExtensions.AsEnumerable(); } }
+
+        private void ValidatePreprocessor<T>(IPreprocessor instance)
+        {
+            if (Preprocessors.Any(p => p.GetType() == typeof(T)))
+            {
+                throw new InvalidOperationException(string.Format("Can't add multiple preprocessors of type: {0}", typeof(T).FullName));
             }
 
-            return _defaultHasher;
+            foreach (var extension in instance.Extensions)
+            {
+                if (Enumerable.Contains(AllExtensions, extension))
+                {
+                    throw new InvalidOperationException(string.Format("Can't add multiple preprocessors for extension: {0}", extension));
+                }
+            }
         }
 
-
-        internal IRetryableFileOpener DefaultRetryableFileOpener()
+        public void ClearPreprocessors()
         {
-            return _defaultRetryableFileOpener;
-        }
+            Preprocessors.Clear();
 
+            AllowedGlobalExtensions.Clear();
+            AllowedScriptExtensions.Clear();
+            AllowedStyleExtensions.Clear();
 
-        public Configuration UseHashAsVirtualDirectoryInvalidationStrategy()
-        {
-            return UseCacheInvalidationStrategy(new HashAsVirtualDirectoryCacheInvalidationStrategy());
-        }
-
-        public Configuration UseCacheInvalidationStrategy(ICacheInvalidationStrategy strategy)
-        {
-            _defaultCacheInvalidationStrategy = strategy;
-            return this;
-        }
-
-        public ICacheInvalidationStrategy DefaultCacheInvalidationStrategy()
-        {
-            return _defaultCacheInvalidationStrategy;
-        }
-
-        public Configuration UseHashKeyName(string hashKeyName)
-        {
-            _defaultHashKeyName = hashKeyName;
-            return this;
-        }
-
-        public string DefaultHashKeyName()
-        {
-            return _defaultHashKeyName;
-        }
-
-        public Configuration UsePathTranslator(IPathTranslator translator)
-        {
-            _defaultPathTranslator = translator;
-            return this;
-        }
-
-        public IPathTranslator DefaultPathTranslator()
-        {
-            return _defaultPathTranslator;
-        }
-
-        public Configuration UseTempPathProvider(ITempPathProvider provider)
-        {
-            _defaultTempPathProvider = provider;
-            return this;
-        }
-
-        public ITempPathProvider DefaultTempPathProvider()
-        {
-            return _defaultTempPathProvider;
+            AllowedScriptExtensions.Add(".JS");
+            AllowedStyleExtensions.Add(".CSS");
         }
     }
 }

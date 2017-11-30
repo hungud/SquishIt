@@ -15,12 +15,12 @@ using SquishIt.Framework.Resolvers;
 using SquishIt.Framework.Utilities;
 using SquishIt.Tests.Stubs;
 using SquishIt.Tests.Helpers;
-using HttpContext = SquishIt.Framework.HttpContext;
+using HttpContext = SquishIt.AspNet.HttpContext;
 
 namespace SquishIt.Tests
 {
     [TestFixture]
-    public class JavaScriptBundleTests
+    public class JavaScriptBundleTests : ConfigurationEstablishingTest
     {
         string javaScript = TestUtilities.NormalizeLineEndings(@"
 																				function product(a, b)

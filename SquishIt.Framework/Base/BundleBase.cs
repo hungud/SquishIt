@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,8 +19,8 @@ namespace SquishIt.Framework.Base
     public abstract partial class BundleBase<T> : IRenderable where T : BundleBase<T>
     {
         static readonly Dictionary<string, string> renderPathCache = new Dictionary<string, string>();
-        static readonly Dictionary<string, BundleState> bundleStateCache = new Dictionary<string, BundleState>();
-        static readonly Dictionary<string, BundleState> rawContentBundleStateCache = new Dictionary<string, BundleState>();
+        static readonly ConcurrentDictionary<string, BundleState> bundleStateCache = new ConcurrentDictionary<string, BundleState>();
+        static readonly ConcurrentDictionary<string, BundleState> rawContentBundleStateCache = new ConcurrentDictionary<string, BundleState>();
  
         protected abstract IMinifier<T> DefaultMinifier { get; }
         protected abstract string tagFormat { get; }
@@ -34,13 +35,13 @@ namespace SquishIt.Framework.Base
         internal BundleState bundleState;
         readonly IContentCache bundleCache;
         readonly IContentCache rawContentCache;
-        protected string BaseOutputHref = Configuration.Instance.DefaultOutputBaseHref();
+        protected string BaseOutputHref = Configuration.Instance.DefaultOutputBaseHref;
         protected IFileWriterFactory fileWriterFactory;
         protected IFileReaderFactory fileReaderFactory;
         protected IDebugStatusReader debugStatusReader;
         protected IDirectoryWrapper directoryWrapper;
         protected IHasher hasher;
-        protected IPathTranslator pathTranslator = Configuration.Instance.DefaultPathTranslator();
+        protected IPathTranslator pathTranslator = Configuration.Instance.Platform.PathTranslator;
 
         IMinifier<T> minifier;
 
@@ -59,17 +60,16 @@ namespace SquishIt.Framework.Base
             this.hasher = hasher;
             bundleState = new BundleState
                               {
-                                  DebugPredicate = Configuration.Instance.DefaultDebugPredicate(),
+                                  DebugPredicate = Configuration.Instance.DefaultDebugPredicate,
                                   ShouldRenderOnlyIfOutputFileIsMissing = false,
-                                  HashKeyName = Configuration.Instance.DefaultHashKeyName(),
-                                  CacheInvalidationStrategy = Configuration.Instance.DefaultCacheInvalidationStrategy()
+                                  HashKeyName = Configuration.Instance.DefaultHashKeyName,
+                                  CacheInvalidationStrategy = Configuration.Instance.DefaultCacheInvalidationStrategy
                               };
             this.bundleCache = bundleCache;
             this.rawContentCache = rawContentCache;
         }
-
-        //TODO: should this be public?
-        internal bool IsDebuggingEnabled()
+        
+        public bool IsDebuggingEnabled()
         {
             return debugStatusReader.IsDebuggingEnabled(bundleState.DebugPredicate);
         }
@@ -78,7 +78,7 @@ namespace SquishIt.Framework.Base
         {
             return IsDebuggingEnabled() ? new FileRenderer(fileWriterFactory) :
                 bundleState.ReleaseFileRenderer ??
-                Configuration.Instance.DefaultReleaseRenderer() ??
+                Configuration.Instance.DefaultReleaseRenderer ??
                 new FileRenderer(fileWriterFactory);
         }
 
@@ -434,14 +434,17 @@ namespace SquishIt.Framework.Base
 
         BundleState GetCachedBundleState(string name)
         {
-            var bundle = bundleStateCache[CachePrefix + name];
-            if (bundle.ForceDebug)
+            BundleState bundle;
+            if (bundleStateCache.TryGetValue(CachePrefix + name, out bundle))
             {
-                debugStatusReader.ForceDebug();
-            }
-            if (bundle.ForceRelease)
-            {
-                debugStatusReader.ForceRelease();
+                if (bundle.ForceDebug)
+                {
+                    debugStatusReader.ForceDebug();
+                }
+                if (bundle.ForceRelease)
+                {
+                    debugStatusReader.ForceRelease();
+                }
             }
             return bundle;
         }
@@ -477,7 +480,7 @@ namespace SquishIt.Framework.Base
         {
             Render(renderToFilePath, name, GetFileRenderer());
             bundleState.Path = renderToFilePath;
-            bundleStateCache[CachePrefix + name] = bundleState;
+            bundleStateCache.AddOrUpdate(CachePrefix + name, bundleState, (x, y) => bundleState);
         }
 
         /// <summary>
@@ -490,7 +493,7 @@ namespace SquishIt.Framework.Base
         {
             string result = Render(renderToFilePath, name, new CacheRenderer(CachePrefix, name));
             bundleState.Path = renderToFilePath;
-            bundleStateCache[CachePrefix + name] = bundleState;
+            bundleStateCache.AddOrUpdate(CachePrefix + name, bundleState, (x, y) => bundleState);
             return result;
         }
 
@@ -568,14 +571,10 @@ namespace SquishIt.Framework.Base
             {
                 rawContentCache.Remove(cacheKey);
             }
-            if (rawContentBundleStateCache.ContainsKey(cacheKey))
-            {
-                rawContentBundleStateCache.Remove(cacheKey);
-            }
 
             content = GetMinifiedContent(bundleState.Assets, string.Empty);
             rawContentCache.Add(cacheKey, content, bundleState.DependentFiles, IsDebuggingEnabled());
-            rawContentBundleStateCache.Add(cacheKey, bundleState);
+            rawContentBundleStateCache.AddOrUpdate(cacheKey, bundleState, (x, y) => bundleState);
             return content;
         }
 
@@ -591,7 +590,7 @@ namespace SquishIt.Framework.Base
             var output = rawContentCache.GetContent(cacheKey);
             if (output == null)
             {
-                bundleState = rawContentBundleStateCache[cacheKey];
+                rawContentBundleStateCache.TryGetValue(cacheKey, out bundleState);
                 if (bundleState == null)
                 {
                     throw new InvalidOperationException(string.Format("No cached bundle state named {0} was found.", bundleName));

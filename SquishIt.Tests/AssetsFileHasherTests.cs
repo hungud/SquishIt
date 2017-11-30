@@ -1,17 +1,16 @@
 ﻿using System.IO;
 using System.Reflection;
 using NUnit.Framework;
-using SquishIt.Framework;
+using SquishIt.AspNet;
 using SquishIt.Framework.CSS;
 using SquishIt.Framework.Resolvers;
-using SquishIt.Framework.Utilities;
 using SquishIt.Tests.Stubs;
 using SquishIt.Tests.Helpers;
 
 namespace SquishIt.Tests
 {
     [TestFixture]
-    public class AssetsFileHasherTests
+    public class AssetsFileHasherTests : ConfigurationEstablishingTest
     {
         [Test]
         public void DoesNotAppendHashIfFileIsRemote()

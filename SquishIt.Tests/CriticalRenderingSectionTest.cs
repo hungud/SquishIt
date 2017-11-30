@@ -11,14 +11,13 @@ namespace SquishIt.Tests
     [TestFixture]
     public class CriticalRenderingSectionTest
     {
-        [TestCase(AspNetHostingPermissionLevel.Unrestricted)]
-        [TestCase(AspNetHostingPermissionLevel.High)]
+        [Test]
         public void UseMutex(AspNetHostingPermissionLevel level)
         {
             string testDir = Guid.NewGuid().ToString();
 
             var trustLevel = new Mock<ITrustLevel>();
-            trustLevel.SetupGet(tl => tl.CurrentTrustLevel).Returns(level);
+            trustLevel.SetupGet(tl => tl.IsFullTrust).Returns(true);
 
             var filePathMutextProvider = new Mock<IFilePathMutexProvider>();
             filePathMutextProvider.Setup(mp => mp.GetMutexForPath(testDir)).Returns(new Mutex());
@@ -36,16 +35,13 @@ namespace SquishIt.Tests
             filePathMutextProvider.VerifyAll();
         }
 
-        [TestCase(AspNetHostingPermissionLevel.Medium)]
-        [TestCase(AspNetHostingPermissionLevel.Low)]
-        [TestCase(AspNetHostingPermissionLevel.Minimal)]
-        [TestCase(AspNetHostingPermissionLevel.None)]
-        public void DontUseMutex(AspNetHostingPermissionLevel level)
+        [Test]
+        public void DontUseMutex()
         {
             string testDir = Guid.NewGuid().ToString();
 
             var trustLevel = new Mock<ITrustLevel>();
-            trustLevel.SetupGet(tl => tl.CurrentTrustLevel).Returns(level);
+            trustLevel.SetupGet(tl => tl.IsFullTrust).Returns(false);
 
             //just want to be sure nothing is called on this
             var filePathMutextProvider = new Mock<IFilePathMutexProvider>(MockBehavior.Strict);

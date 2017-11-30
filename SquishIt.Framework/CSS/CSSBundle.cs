@@ -38,17 +38,17 @@ namespace SquishIt.Framework.CSS
 
         protected override IMinifier<CSSBundle> DefaultMinifier
         {
-            get { return Configuration.Instance.DefaultCssMinifier(); }
+            get { return Configuration.Instance.DefaultCssMinifier; }
         }
 
         protected override IEnumerable<string> allowedExtensions
         {
-            get { return bundleState.AllowedExtensions.Union(Bundle.AllowedGlobalExtensions.Union(Bundle.AllowedStyleExtensions)); }
+            get { return bundleState.AllowedExtensions.Union(Configuration.Instance.AllowedGlobalExtensions.Union(Configuration.Instance.AllowedStyleExtensions)); }
         }
 
         protected override IEnumerable<string> disallowedExtensions
         {
-            get { return Bundle.AllowedScriptExtensions; }
+            get { return Configuration.Instance.AllowedScriptExtensions; }
         }
 
         protected override string defaultExtension
@@ -62,12 +62,12 @@ namespace SquishIt.Framework.CSS
         }
 
         public CSSBundle()
-            : this(new DebugStatusReader())
+            : this(Configuration.Instance.Platform.DebugStatusReader)
         {
         }
 
         public CSSBundle(IDebugStatusReader debugStatusReader)
-            : this(debugStatusReader, new FileWriterFactory(Configuration.Instance.DefaultRetryableFileOpener(), 5), new FileReaderFactory(Configuration.Instance.DefaultRetryableFileOpener(), 5), new DirectoryWrapper(), Configuration.Instance.DefaultHasher(), new BundleCache(), new RawContentCache())
+            : this(debugStatusReader, new FileWriterFactory(Configuration.Instance.DefaultRetryableFileOpener, 5), new FileReaderFactory(Configuration.Instance.DefaultRetryableFileOpener, 5), new DirectoryWrapper(), Configuration.Instance.DefaultHasher, new BundleCache(), new RawContentCache())
         {
         }
 

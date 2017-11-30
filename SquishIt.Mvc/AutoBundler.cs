@@ -18,7 +18,7 @@ namespace SquishIt.Mvc
     {
         public static AutoBundlingBehavior Behavior { get; set; }
 
-        private IHasher _hasher = Configuration.Instance.DefaultHasher();
+        private IHasher _hasher = Configuration.Instance.DefaultHasher;
 
         static AutoBundler()
         {
@@ -79,9 +79,9 @@ namespace SquishIt.Mvc
         /// <param name="resourceFiles">Project paths to JavaScript and/or CSS files</param>
         public void AddResources(string viewPath, params string[] resourceFiles)
         {
-            var styles = FilterFileExtensions(resourceFiles, Bundle.AllowedStyleExtensions);
+            var styles = FilterFileExtensions(resourceFiles, Configuration.Instance.AllowedStyleExtensions);
             AddStyleResources(viewPath, styles);
-            var scripts = FilterFileExtensions(resourceFiles, Bundle.AllowedScriptExtensions);
+            var scripts = FilterFileExtensions(resourceFiles, Configuration.Instance.AllowedScriptExtensions);
             AddScriptResources(viewPath, scripts);
         }
 

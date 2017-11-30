@@ -1,5 +1,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2010
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SquishIt.Framework", "SquishIt.Framework\SquishIt.Framework.csproj", "{50C3BC24-E534-4B78-8E8E-CB2C4053321D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SquishIt.Tests", "SquishIt.Tests\SquishIt.Tests.csproj", "{9C25B211-82E0-43AC-A68C-4346E642D16C}"
@@ -16,7 +18,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SquishIt.Sass", "SquishIt.S
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuspec", "nuspec", "{0723B20D-9241-4D11-9242-09E20F0C55A9}"
 	ProjectSection(SolutionItems) = preProject
+		nuspec\squishit.aspnet.nuspec = nuspec\squishit.aspnet.nuspec
 		nuspec\squishit.coffeescript.nuspec = nuspec\squishit.coffeescript.nuspec
+		nuspec\squishit.framework.nuspec = nuspec\squishit.framework.nuspec
 		nuspec\squishit.hogan.nuspec = nuspec\squishit.hogan.nuspec
 		nuspec\squishit.less.nuspec = nuspec\squishit.less.nuspec
 		nuspec\squishit.msiecoffeescript.nuspec = nuspec\squishit.msiecoffeescript.nuspec
@@ -38,6 +42,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{8F21162C-1BC1-4261-B908-FA88247AC374}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SquishIt.NSass", "SquishIt.NSass\SquishIt.NSass.csproj", "{8D1EE11A-C71D-453D-B0BC-0A76C20B010E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SquishIt.AspNet", "SquishIt.AspNet\SquishIt.AspNet.csproj", "{26413FDB-CB57-4057-B8C3-3CBF5A73AE50}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,6 +95,10 @@ Global
 		{8D1EE11A-C71D-453D-B0BC-0A76C20B010E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8D1EE11A-C71D-453D-B0BC-0A76C20B010E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8D1EE11A-C71D-453D-B0BC-0A76C20B010E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26413FDB-CB57-4057-B8C3-3CBF5A73AE50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26413FDB-CB57-4057-B8C3-3CBF5A73AE50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26413FDB-CB57-4057-B8C3-3CBF5A73AE50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26413FDB-CB57-4057-B8C3-3CBF5A73AE50}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
