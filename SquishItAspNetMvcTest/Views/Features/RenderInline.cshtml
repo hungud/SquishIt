@@ -16,10 +16,22 @@
 @section Styles {
     <style type="text/css">
         @Html.Raw(Bundle.Css()
-            .Add("/assets/styles/minifycss_test1.css")
-            .Add("/assets/styles/minifycss_test2.css")
-            .ForceRelease()
-            .RenderRawContent("raw-css"))
+         .Add("/assets/styles/minifycss_test1.css")
+         .Add("/assets/styles/minifycss_test2.css")
+        .ForceRelease()
+        .RenderRawContent("raw-css"))
+
+
+    </style>
+
+    <style type="text/css">
+        
+         @Html.Raw(Bundle.Css()
+        .AddDirectory("/assets/styles/FontAwesome", true)
+        .AddDirectory("/assets/styles/jQueryBootstrap", true)
+        .AddDirectory("/assets/styles/jQueryCustomScrollBar", true)
+        .ForceRelease()
+        .RenderRawContent("raw-css"))
     </style>
 }
 
