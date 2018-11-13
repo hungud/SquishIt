@@ -13,8 +13,8 @@ namespace SquishIt.Framework.CSS
             var relativePaths = FindDistinctRelativePathsIn(css);
 
             if (relativePaths.Any())
-            {
-                var relativeOutputPath = GetWebPath(outputPath, pathTranslator);
+            {                
+                var relativeOutputPath = string.IsNullOrWhiteSpace(outputPath) == false ? GetWebPath(outputPath, pathTranslator) : "";
                 var relativeSourcePath = GetWebPath(sourcePath, pathTranslator);
 
                 var relativePathAdapter = RelativePathAdapter.Between(relativeOutputPath, relativeSourcePath);
