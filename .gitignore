@@ -25,3 +25,4 @@ SquishItAspNetMvcTest/output/
 *SquishIt.shfbproj_*
 
 .sass-cache
+/SquishItAspNetMvcTest/.vs
